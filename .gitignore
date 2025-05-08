@@ -1,3 +1,5 @@
-src/.env
-test/
-venv/
+node_modules
+storage/alexicon
+storage/yipnet
+test
+.env

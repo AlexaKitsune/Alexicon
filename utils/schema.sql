@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     list_negative JSON DEFAULT '[]',
     list_positive_external JSON DEFAULT '[]',
     list_negative_external JSON DEFAULT '[]',
-    api_code VARCHAR(63),
+    api_code TEXT,
     registration_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     verified TINYINT(1) NOT NULL DEFAULT 0,
     verify_key VARCHAR(128),
@@ -124,5 +124,3 @@ FOR EACH ROW
 BEGIN
     UPDATE posts SET comment_count = COALESCE(comment_count, 0) - 1 WHERE id = OLD.post_id;
 END$$
-
-
