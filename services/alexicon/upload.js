@@ -7,8 +7,8 @@ const getIdByToken = require('../../utils/getIdByToken');
 const router = express.Router();
 
 const ALLOWED_PATHS = ['alexicon', 'yipnet']; // carpetas válidas
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.webm', ".pdf", ".docx", ".xls", ".xlsx", ".ttf", ".otf", ".woff", ".html", ".htm", ".ogg", ".pdf", ".psd", ".txt", ".xml", ".csv", ".py", ".cpp", ".js", ".css", ".json", ".bat"];
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 // Multer: limita tamaño de archivo y usa memoria para procesar luego
 const upload = multer({
