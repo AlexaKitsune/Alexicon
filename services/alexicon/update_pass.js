@@ -30,14 +30,10 @@ router.post('/update_pass', async (req, res) => {
         return res.status(401).json({ status: 'error', message: 'Invalid token.' });
     }
 
-    const { oldPass, confirmPass, newPass } = req.body;
+    const { oldPass, newPass } = req.body;
 
-    if (!oldPass || !confirmPass || !newPass) {
+    if (!oldPass || !newPass) {
         return res.status(400).json({ status: 'error', message: 'Missing required fields.' });
-    }
-
-    if (oldPass !== confirmPass) {
-        return res.status(400).json({ status: 'error', message: 'Old password entries do not match.' });
     }
 
     if (!isValidPassword(newPass)) {

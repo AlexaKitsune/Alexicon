@@ -54,7 +54,7 @@ router.get('/list_posts/:targetId', async (req, res) => {
         }
 
         let query = `
-            SELECT p.*, u.name, u.surname, u.current_profile_pic 
+            SELECT p.*, u.name, u.surname, u.current_profile_pic, u.services 
             FROM posts p
             JOIN users u ON p.owner_id = u.id
             WHERE p.owner_id = ?
@@ -85,6 +85,7 @@ router.get('/list_posts/:targetId', async (req, res) => {
                 list_vote_heart: tryParseJson(row.list_vote_heart),
                 list_vote_up: tryParseJson(row.list_vote_up),
                 list_vote_down: tryParseJson(row.list_vote_down),
+                services: tryParseJson(row.services),
                 post_date: row.post_date?.toISOString?.() || row.post_date,
                 name: row.name,
                 surname: row.surname,

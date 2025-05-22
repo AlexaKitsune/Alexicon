@@ -46,7 +46,7 @@ router.get('/get_single_comment', async (req, res) => {
         const conn = await getConnection();
 
         const [[userRow]] = await conn.execute(
-            "SELECT list_negative, list_negative_external FROM users WHERE id = ?",
+            "SELECT list_negative, list_negative_external, services FROM users WHERE id = ?",
             [userId]
         );
 

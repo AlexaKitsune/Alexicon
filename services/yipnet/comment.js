@@ -1,6 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const getIdByToken = require('../../utils/getIdByToken');
+const { emitToUser } = require('../../utils/socket');
 const router = express.Router();
 
 async function getConnection() {
@@ -71,14 +72,53 @@ router.post('/comment', async (req, res) => {
                 return res.status(400).json({ status: "error", message: "Media must be an array." });
             }
 
+            // Obtener owner_id del post
+            const [postRows] = await conn.execute(
+                "SELECT owner_id FROM posts WHERE id = ?",
+                [postId]
+            );
+
+            const postOwnerId = postRows[0]?.owner_id;
+            if (!postOwnerId) {
+                await conn.end();
+                return res.status(404).json({ status: "error", message: "Target post not found." });
+            }
+
+            // Insertar comentario (el owner_id sigue siendo quien comenta)
             const [result] = await conn.execute(`
                 INSERT INTO comments (post_id, owner_id, content, media)
                 VALUES (?, ?, ?, ?)
             `, [postId, userId, content, JSON.stringify(media)]);
 
             const commentId = result.insertId;
-            await conn.end();
 
+            // Notificar al dueño del post si no es el mismo comentarista
+            if (postOwnerId !== userId) {
+                const [userRows] = await conn.execute(`
+                    SELECT id, name, surname, current_profile_pic, services
+                    FROM users WHERE id = ?
+                `, [userId]);
+
+                const userData = userRows[0];
+
+                const notificationContent = {
+                    user: userData,
+                    postId,
+                    commentId
+                };
+
+                await conn.execute(`
+                    INSERT INTO notifications (owner_id, content, service)
+                    VALUES (?, ?, ?)
+                `, [postOwnerId, JSON.stringify(notificationContent), 'yipnet']);
+
+                emitToUser(postOwnerId, 'yipnet_notification', {
+                    message: 'You have a new comment',
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            await conn.end();
             return res.json({ status: "ok", comment_id: commentId });
         }
 

@@ -35,6 +35,7 @@ async function retrieveUserData(userId) {
             list_negative: user.list_negative,
             list_positive_external: user.list_positive_external,
             list_negative_external: user.list_negative_external,
+            services: user.services,
             api_code: user.api_code ? 1 : 0
         };
     } catch (err) {

@@ -71,7 +71,7 @@ router.get('/list_comments/:postId', async (req, res) => {
 
         // Obtener comentarios
         const [rows] = await conn.execute(
-            `SELECT c.*, u.name, u.surname, u.current_profile_pic
+            `SELECT c.*, u.name, u.surname, u.current_profile_pic, u.services
              FROM comments c
              JOIN users u ON c.owner_id = u.id
              WHERE c.post_id = ?
@@ -92,6 +92,7 @@ router.get('/list_comments/:postId', async (req, res) => {
                 media: tryParseJson(row.media),
                 list_vote_up: tryParseJson(row.list_vote_up),
                 list_vote_down: tryParseJson(row.list_vote_down),
+                list_vote_heart: tryParseJson(row.list_vote_heart),
                 comment_date: row.comment_date?.toISOString?.() || row.comment_date,
                 name: row.name,
                 surname: row.surname,

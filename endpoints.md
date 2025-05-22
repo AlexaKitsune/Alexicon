@@ -6,19 +6,26 @@ utils: cosas que interactuan con la base de datos o que no requieren procesamien
 | `/alexicon/block`            | POST   | ✅            | Body JSON                              |
 | `/alexicon/follow`           | POST   | ✅            | Body JSON                              |
 | `/alexicon/login`            | POST   | ❌            | Body JSON                              |
+| `/alexicon/notifications`    | POST   | ✅            | Body JSON                              |
+| `/alexicon/notification_seen`| POST   | ✅            | Body JSON                              |
 | `/alexicon/on`               | GET    | ❌            |                                        |
 | `/alexicon/register`         | POST   | ❌            | Body JSON                              |
+| `/alexicon/retrieve_users`   | POST   | ❌            | Body JSON                              |
 | `/alexicon/retrieve`         | GET    | ❌            | Query param (`id`)                     |
 | `/alexicon/update_pass`      | POST   | ✅            | Body JSON                              |
 | `/alexicon/update_pics`      | POST   | ✅            | Body JSON                              |
+| `/alexicon/update_profile`   | POST   | ✅            | Body JSON                              |
 | `/alexicon/upload`           | POST   | ✅            | FormData: `file(s)`, `targetPath`      |
 | `/yipnet/comment`            | POST   | ✅            | Body JSON                              |
+| `/yipnet/delete`             | POST   | ✅            | Body JSON                              |
 | `/yipnet/get_single_comment` | GET    | Optional      | Query param (`id`)                     |
 | `/yipnet/get_single_post`    | POST   | Optional      | Body JSON (optional token)             |
 | `/yipnet/list_comments`      | GET    | ✅            | URL param (`/list_posts/:postId`)      |
 | `/yipnet/list_posts`         | GET    | ✅            | URL param (`/list_posts/:targetId`)    |
-| `/alexicon/newsfeed`         | GET    | ✅            |                                        |
+| `/yipnet/messages`           | POST   | ✅            | Body JSON                              |
+| `/yipnet/newsfeed`           | GET    | ✅            |                                        |
 | `/yipnet/post`               | POST   | ✅            | Body JSON                              |
+| `/yipnet/retrieve_posts`     | POST   | ✅            | Body JSON                              |
 | `/yipnet/vote`               | POST   | ✅            | Body JSON                              |
 
 
@@ -182,6 +189,48 @@ localStorage.setItem("AlexiconUserData", JSON.stringify({
 
 
 
+# `/alexicon/notifications`
+
+Devuele las notificaciones de determinado usuario.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+
+
+
+
+# `/alexicon/notification_seen`
+
+Marca una o todas las notificaciones como leídas.
+
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+#### Marcar una sola notificación como leída:
+
+Recibe:
+```js
+{
+    "id": 123
+}
+```
+
+#### Marcar todas las notificaciones como leídas:
+
+Recibe:
+```js
+{
+    "mode": "all"
+}
+```
+
+
+
+
 
 # `/alexicon/on`
 
@@ -284,6 +333,49 @@ Respuesta:
 
 
 
+# `/alexicon/retrieve_users`
+
+Este endpoint recibe desde el front un array de IDs de usuarios y devuelve la información pública de esos usuarios desde la base de datos.
+Incluye datos como nombre, apellidos, nickname, foto de perfil, listas de votos y demás información relevante.
+Solo devuelve registros cuyo ID coincida con los enviados. No requiere autenticación.
+
+Recibe:
+
+```js
+{
+    ids: [1, 2, 3]
+}
+```
+
+Respuesta
+
+```js
+[
+    {
+        "id": 1,
+        "name": "John",
+        "surname": "Doe",
+        "nickname": "johnny",
+        "at_sign": "@john",
+        "birthday": "1990-01-01",
+        "gender": "male",
+        "description": "A user",
+        "current_profile_pic": "pic1.jpg",
+        "current_cover_pic": "cover1.jpg",
+        "list_positive": [],
+        "list_negative": [],
+        "list_positive_external": [],
+        "list_negative_external": [],
+        "api_code": 1
+    },
+    // ...
+]
+```
+
+
+
+
+
 # `/alexicon/update_pass/`
 
 Actualiza la contraseña.
@@ -297,7 +389,6 @@ Recibe:
 ```js
 {
     oldPass: "OldPass123",
-    confirmPass: "OldPass123",
     newPass: "NewPass321"
 }
 ```
@@ -331,6 +422,31 @@ Respuesta:
     "message": "Picture updated."
 }
 ```
+
+
+
+
+
+# `/alexicon/update_profile/`
+
+Actualiza los datos públicos del usuario.
+
+Recibe:
+
+```js
+{
+    name: 'John',
+    surname: 'Doe',
+    nickname: 'johnny',
+    at_sign: 'john_doe',
+    gender: 'male',
+    description: 'Just a guy who loves coding.',
+}
+```
+
+### Comportamiento
+
+Los datos `nickname` y `at_sign` deben ser únicos para cada usuario. Si existe otro usuario con los mismos datos en los respectivos campos, se devuelve un error.
 
 
 
@@ -421,6 +537,27 @@ Respuesta:
 {
     "status": "ok",
     "message": "Comment deleted successfully."
+}
+```
+
+
+
+
+
+# `/yipnet/delete`
+
+Elimina un comentario o una publicación.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+Recibe:
+
+```js
+{
+  "type": "post", // 'post' o 'comment'.
+  "id": 123 // id del post o comentario a eliminar.
 }
 ```
 
@@ -575,6 +712,28 @@ Respuesta:
 
 
 
+# `/yipnet/messages`
+
+Agrega un nuevo mensaje.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+Recibe:
+
+```js
+{
+    "media": [],
+    "content": "Hello",
+    "targetId": 123,
+    "conversationId": 0
+}
+```
+
+
+
+
 
 # `/yipnet/newsfeed`
 
@@ -610,6 +769,26 @@ Respuesta:
 {
     response: 'Post created successfully.',
     post_id: 123
+}
+```
+
+
+
+
+
+# `/yipnet/retrieve_posts`
+
+Este endpoint recibe desde el front un array de IDs de los posts y devuelve dichos posts en un array.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+Recibe:
+
+```js
+{
+    ids: [1, 2, 3]
 }
 ```
 

@@ -47,7 +47,7 @@ router.get('/newsfeed', async (req, res) => {
 
         const placeholders = positiveList.map(() => '?').join(',');
         const [posts] = await conn.execute(
-            `SELECT p.*, u.name, u.surname, u.current_profile_pic
+            `SELECT p.*, u.name, u.surname, u.current_profile_pic, u.services
              FROM posts p
              JOIN users u ON p.owner_id = u.id
              WHERE p.owner_id IN (${placeholders})
@@ -63,6 +63,7 @@ router.get('/newsfeed', async (req, res) => {
             list_vote_heart: JSON.parse(post.list_vote_heart || '[]'),
             list_vote_up: JSON.parse(post.list_vote_up || '[]'),
             list_vote_down: JSON.parse(post.list_vote_down || '[]'),
+            services: JSON.parse(post.services || '{}'),
             post_date: post.post_date instanceof Date ? post.post_date.toISOString() : post.post_date
         }));
 

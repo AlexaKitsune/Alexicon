@@ -1,6 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const getIdByToken = require('../../utils/getIdByToken');
+const { emitToUser } = require('../../utils/socket'); // <-- agregado aquí
 const router = express.Router();
 
 async function getConnection() {
@@ -15,7 +16,7 @@ async function getConnection() {
 router.post('/follow', async (req, res) => {
     const { targetId, mode } = req.body;
     const authHeader = req.headers.authorization;
-    
+
     if (!targetId || isNaN(targetId)) {
         return res.status(400).json({ status: "error", message: "Invalid target ID." });
     }
@@ -34,9 +35,8 @@ router.post('/follow', async (req, res) => {
     try {
         const conn = await getConnection();
 
-        // Obtener los arrays list_positive y list_positive_external del myId y targetId
         const [userRows] = await conn.execute(
-            "SELECT list_positive, list_positive_external FROM users WHERE id IN (?, ?)",
+            "SELECT id, list_positive, list_positive_external, name, surname, current_profile_pic, services FROM users WHERE id IN (?, ?)",
             [myId, targetId]
         );
 
@@ -45,35 +45,60 @@ router.post('/follow', async (req, res) => {
             return res.status(404).json({ status: "error", message: "User not found." });
         }
 
-        const [myData, targetData] = userRows;
+        const [myData, targetData] = userRows[0].id === myId
+            ? [userRows[0], userRows[1]]
+            : [userRows[1], userRows[0]];
+
         const listPositive = tryParseJson(myData.list_positive) || [];
         const listPositiveExternal = tryParseJson(targetData.list_positive_external) || [];
 
         if (mode === "follow") {
-            // Agregar myId a list_positive_external de targetId y targetId a list_positive de myId si no están ya
             if (!listPositive.includes(targetId)) {
                 listPositive.push(targetId);
             }
             if (!listPositiveExternal.includes(myId)) {
                 listPositiveExternal.push(myId);
             }
-        } else if (mode === "unfollow") {
-            // Eliminar myId de list_positive de myId y targetId de list_positive_external de targetId si existen
-            const myListPositiveIndex = listPositive.indexOf(targetId);
-            const targetListPositiveExternalIndex = listPositiveExternal.indexOf(myId);
 
-            if (myListPositiveIndex !== -1) {
-                listPositive.splice(myListPositiveIndex, 1);
-            }
-            if (targetListPositiveExternalIndex !== -1) {
-                listPositiveExternal.splice(targetListPositiveExternalIndex, 1);
-            }
+            const content = {
+                follower_id: myId,
+                name: myData.name,
+                surname: myData.surname,
+                current_profile_pic: myData.current_profile_pic,
+                services: myData.services,
+                timestamp: new Date().toISOString()
+            };
+
+            await conn.execute(
+                `INSERT INTO notifications (owner_id, content, service) VALUES (?, ?, ?)`,
+                [targetId, JSON.stringify(content), 'alexicon']
+            );
+
+            // Enviar alerta por WebSocket
+            emitToUser(targetId, 'follow_notification', {
+                message: 'You have a new follower',
+                type: 'follow',
+                follower: {
+                    id: myId,
+                    name: myData.name,
+                    surname: myData.surname,
+                    current_profile_pic: myData.current_profile_pic,
+                    services: myData.services,
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } else if (mode === "unfollow") {
+            const myIndex = listPositive.indexOf(targetId);
+            const targetIndex = listPositiveExternal.indexOf(myId);
+
+            if (myIndex !== -1) listPositive.splice(myIndex, 1);
+            if (targetIndex !== -1) listPositiveExternal.splice(targetIndex, 1);
         } else {
             await conn.end();
             return res.status(400).json({ status: "error", message: "Invalid mode." });
         }
 
-        // Actualizar los arrays en la base de datos
         await conn.execute(
             "UPDATE users SET list_positive = ? WHERE id = ?",
             [JSON.stringify(listPositive), myId]
@@ -94,7 +119,6 @@ router.post('/follow', async (req, res) => {
     }
 });
 
-// Función para manejar parsing de JSON
 function tryParseJson(value) {
     if (typeof value === 'string') {
         try {

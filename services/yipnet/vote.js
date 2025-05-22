@@ -2,6 +2,8 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const getIdByToken = require("../../utils/getIdByToken");
 const router = express.Router();
+const { emitToUser } = require('../../utils/socket');
+
 
 async function getConnection() {
     return await mysql.createConnection({
@@ -78,6 +80,48 @@ router.post("/vote", async (req, res) => {
             `UPDATE \`${table}\` SET \`${column}\` = ? WHERE id = ?`,
             [JSON.stringify(voteList), targetId]
         );
+
+        // send socket
+        // Obtén el owner_id del post o entidad votada
+        const [targetData] = await conn.query(
+            `SELECT owner_id FROM \`${table}\` WHERE id = ?`,
+            [targetId]
+        );
+
+        const targetOwnerId = targetData[0]?.owner_id;
+
+        if (targetOwnerId && targetOwnerId !== myId) {
+            // Obtengo datos del usuario que votó (myId)
+            const [userDataResult] = await conn.query(
+                `SELECT id, name, surname, current_profile_pic, services FROM users WHERE id = ?`,
+                [myId]
+            );
+
+            const userData = userDataResult[0];
+
+            // Construyo el contenido de la notificación en JSON
+            const notificationContent = {
+                user: userData,
+                targetId,
+                voteType,
+                entityType,
+                status: alreadyVoted ? 'removed' : 'added',
+                timestamp: new Date().toISOString()
+            };
+
+            // Inserto la notificación en la base de datos
+            await conn.query(
+                `INSERT INTO notifications (owner_id, content, service) VALUES (?, ?, ?)`,
+                [targetOwnerId, JSON.stringify(notificationContent), 'yipnet']
+            );
+
+            // Solo envío alerta simple por socket
+            emitToUser(targetOwnerId, 'yipnet_notification', {
+                message: 'You have a new notification',
+                timestamp: new Date().toISOString()
+            });
+        }
+        // end send socket
 
         await conn.end();
 

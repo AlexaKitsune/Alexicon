@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
     list_negative JSON DEFAULT '[]',
     list_positive_external JSON DEFAULT '[]',
     list_negative_external JSON DEFAULT '[]',
+    services JSON DEFAULT '{}',
+    settings JSON DEFAULT '{}',
     api_code TEXT,
     registration_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     verified TINYINT(1) NOT NULL DEFAULT 0,
@@ -29,11 +31,24 @@ CREATE TABLE IF NOT EXISTS users (
     origin VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
 
-CREATE TABLE IF NOT EXISTS services (
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    author BIGINT UNSIGNED NOT NULL,
+    service VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    route MEDIUMTEXT NOT NULL,
+    message MEDIUMTEXT NOT NULL,
+    report_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    origin VARCHAR(255)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
+
+CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     owner_id BIGINT UNSIGNED NOT NULL,
-    yip_net TINYINT(1) NOT NULL DEFAULT 0,
-    FOREIGN KEY (owner_id) REFERENCES users(id)
+    seen TINYINT(1) NOT NULL DEFAULT 0,
+    content JSON DEFAULT '{}',
+    service VARCHAR(255),
+    notif_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
 
 CREATE TABLE IF NOT EXISTS posts (
@@ -72,6 +87,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     sender_id BIGINT UNSIGNED NOT NULL,
     receiver_id BIGINT UNSIGNED NOT NULL,
+    conversation_id BIGINT UNSIGNED NOT NULL,
     content TEXT NOT NULL,
     media JSON DEFAULT '[]',
     list_vote_heart JSON DEFAULT '[]',
@@ -88,24 +104,6 @@ CREATE TABLE IF NOT EXISTS conversations (
     name VARCHAR(63) NOT NULL,
     participants JSON DEFAULT '[]'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
-
--- Creates a record on 'services' when new user:
-DROP TRIGGER IF EXISTS after_user_insert$$
-CREATE TRIGGER after_user_insert
-AFTER INSERT ON users
-FOR EACH ROW
-BEGIN
-    INSERT INTO services (owner_id) VALUES (NEW.id);
-END$$
-
--- Deletes a record on 'services' when user is deleted:
-DROP TRIGGER IF EXISTS after_user_delete$$
-CREATE TRIGGER after_user_delete
-AFTER DELETE ON users
-FOR EACH ROW
-BEGIN
-    DELETE FROM services WHERE owner_id = OLD.id;
-END$$
 
 -- Increments comment_count +1 when new comment:
 DROP TRIGGER IF EXISTS after_comment_insert$$

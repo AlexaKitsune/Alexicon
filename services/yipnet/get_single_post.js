@@ -19,10 +19,6 @@ router.get('/get_single_post', async (req, res) => {
         return res.status(400).json({ response: 'Invalid or missing post ID.' });
     }
 
-    if (!postId) {
-        return res.status(400).json({ response: 'Missing post ID.' });
-    }
-
     let userId = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -33,11 +29,13 @@ router.get('/get_single_post', async (req, res) => {
     try {
         const conn = await getConnection();
         const [rows] = await conn.execute(
-            `SELECT id, owner_id, content, media, shared_by_list, share_id,
-                    private_post, nsfw_post, comment_count, list_vote_heart,
-                    list_vote_up, list_vote_down, post_date
-             FROM posts
-             WHERE id = ?`,
+            `SELECT p.id, p.owner_id, p.content, p.media, p.shared_by_list, p.share_id,
+                    p.private_post, p.nsfw_post, p.comment_count, p.list_vote_heart,
+                    p.list_vote_up, p.list_vote_down, p.post_date,
+                    u.name, u.surname, u.current_profile_pic, u.services
+             FROM posts p
+             JOIN users u ON p.owner_id = u.id
+             WHERE p.id = ?`,
             [postId]
         );
         await conn.end();
@@ -52,7 +50,37 @@ router.get('/get_single_post', async (req, res) => {
             return res.status(403).json({ response: 'Unauthorized access to private post.' });
         }
 
-        return res.json(post);
+        // Parsear JSONs en los campos que lo necesiten
+        const tryParseJson = (value) => {
+            if (typeof value === 'string') {
+                try {
+                    return JSON.parse(value);
+                } catch {
+                    return value;
+                }
+            }
+            return value;
+        };
+
+        return res.json({
+            id: post.id,
+            owner_id: post.owner_id,
+            content: post.content,
+            media: tryParseJson(post.media),
+            shared_by_list: tryParseJson(post.shared_by_list),
+            share_id: post.share_id,
+            private_post: post.private_post,
+            nsfw_post: post.nsfw_post,
+            comment_count: post.comment_count,
+            list_vote_heart: tryParseJson(post.list_vote_heart),
+            list_vote_up: tryParseJson(post.list_vote_up),
+            list_vote_down: tryParseJson(post.list_vote_down),
+            services: tryParseJson(post.services),
+            post_date: post.post_date?.toISOString?.() || post.post_date,
+            name: post.name,
+            surname: post.surname,
+            current_profile_pic: post.current_profile_pic
+        });
     } catch (err) {
         console.error("Error retrieving post:", err);
         return res.status(500).json({ response: 'Database error.' });
