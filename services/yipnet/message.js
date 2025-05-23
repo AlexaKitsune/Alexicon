@@ -13,10 +13,10 @@ async function getConnection() {
     });
 }
 
-router.post('/messages', async (req, res) => {
+router.post('/message', async (req, res) => {
     const { media = [], content = '', targetId, conversationId = 0 } = req.body;
-    const authHeader = req.headers.authorization;
 
+    const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ status: 'error', message: 'Missing or invalid token.' });
     }
@@ -28,7 +28,10 @@ router.post('/messages', async (req, res) => {
         return res.status(403).json({ status: 'error', message: 'Invalid token.' });
     }
 
-    if (!targetId || isNaN(targetId) || !conversationId || isNaN(conversationId)) {
+    if (
+        targetId === undefined || isNaN(targetId) ||
+        conversationId === undefined || isNaN(conversationId)
+    ) {
         return res.status(400).json({ status: 'error', message: 'Invalid or missing fields.' });
     }
 
@@ -70,19 +73,9 @@ router.post('/messages', async (req, res) => {
         };
 
         // 3. Insertar notificación
-        await conn.execute(
-            `INSERT INTO notifications 
-             (owner_id, content, service, notif_date) 
-             VALUES (?, ?, ?, NOW())`,
-            [
-                targetId,
-                JSON.stringify(notifContent),
-                'message'
-            ]
-        );
 
         // 4. Emitir al front por WebSocket
-        emitToUser(targetId, 'yipnet_notification', {
+        emitToUser(targetId, 'yipnet_message', {
             message: 'You have a new message',
             messageId,
             timestamp: new Date().toISOString()

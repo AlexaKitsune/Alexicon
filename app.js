@@ -37,11 +37,12 @@ const routes = {
 
     comment: require('./services/yipnet/comment'),
     delete: require('./services/yipnet/delete'),
+    get_messages: require('./services/yipnet/get_messages'),
     get_single_comment: require('./services/yipnet/get_single_comment'),
     get_single_post: require('./services/yipnet/get_single_post'),
     list_comments: require('./services/yipnet/list_comments'),
     list_posts: require('./services/yipnet/list_posts'),
-    messages: require('./services/yipnet/messages'),
+    message: require('./services/yipnet/message'),
     newsfeed: require('./services/yipnet/newsfeed'),
     post: require('./services/yipnet/post'),
     retrieve_posts: require('./services/yipnet/retrieve_posts'),
@@ -66,11 +67,12 @@ app.use('/alexicon', routes.update_profile);
 app.use('/alexicon', routes.upload);
 app.use('/yipnet', routes.comment);
 app.use('/yipnet', routes.delete);
+app.use('/yipnet', routes.get_messages);
 app.use('/yipnet', routes.get_single_comment);
 app.use('/yipnet', routes.get_single_post);
 app.use('/yipnet', routes.list_comments);
 app.use('/yipnet', routes.list_posts);
-app.use('/yipnet', routes.messages);
+app.use('/yipnet', routes.message);
 app.use('/yipnet', routes.newsfeed);
 app.use('/yipnet', routes.post);
 app.use('/yipnet', routes.retrieve_posts);
