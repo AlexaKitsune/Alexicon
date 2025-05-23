@@ -18,6 +18,7 @@ utils: cosas que interactuan con la base de datos o que no requieren procesamien
 | `/alexicon/upload`           | POST   | ✅            | FormData: `file(s)`, `targetPath`      |
 | `/yipnet/comment`            | POST   | ✅            | Body JSON                              |
 | `/yipnet/delete`             | POST   | ✅            | Body JSON                              |
+| `/yipnet/get_messages`       | GET   | ✅            | Body JSON                              |
 | `/yipnet/get_single_comment` | GET    | Optional      | Query param (`id`)                     |
 | `/yipnet/get_single_post`    | POST   | Optional      | Body JSON (optional token)             |
 | `/yipnet/list_comments`      | GET    | ✅            | URL param (`/list_posts/:postId`)      |
@@ -560,6 +561,25 @@ Recibe:
   "id": 123 // id del post o comentario a eliminar.
 }
 ```
+
+
+
+
+
+# `/yipnet/get_messages`
+
+Obtiene una lista de mensajes.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+### Parámetros de consulta
+
+- `user`: (number) Opcional. ID del usuario con el que se comparten los mensajes que desean obtenerse. (`?user=`)
+- `conversation`: (number) Opcional. ID de la conversación. (`?conversation=`)
+
+Debe enviarse uno sólo de los parámetros anteriores. Nunca ambos juntos ni ninguno.
 
 
 
