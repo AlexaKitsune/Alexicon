@@ -6,6 +6,7 @@ utils: cosas que interactuan con la base de datos o que no requieren procesamien
 | `/alexicon/block`            | POST   | ✅            | Body JSON                              |
 | `/alexicon/follow`           | POST   | ✅            | Body JSON                              |
 | `/alexicon/login`            | POST   | ❌            | Body JSON                              |
+| `/alexicon/logout`           | POST   | ✅            | Body JSON                              |
 | `/alexicon/notifications`    | POST   | ✅            | Body JSON                              |
 | `/alexicon/notification_seen`| POST   | ✅            | Body JSON                              |
 | `/alexicon/on`               | GET    | ❌            |                                        |
@@ -18,7 +19,7 @@ utils: cosas que interactuan con la base de datos o que no requieren procesamien
 | `/alexicon/upload`           | POST   | ✅            | FormData: `file(s)`, `targetPath`      |
 | `/yipnet/comment`            | POST   | ✅            | Body JSON                              |
 | `/yipnet/delete`             | POST   | ✅            | Body JSON                              |
-| `/yipnet/get_messages`       | GET   | ✅            | Body JSON                              |
+| `/yipnet/get_messages`       | GET    | ✅            | Body JSON                              |
 | `/yipnet/get_single_comment` | GET    | Optional      | Query param (`id`)                     |
 | `/yipnet/get_single_post`    | POST   | Optional      | Body JSON (optional token)             |
 | `/yipnet/list_comments`      | GET    | ✅            | URL param (`/list_posts/:postId`)      |
@@ -186,6 +187,27 @@ localStorage.setItem("AlexiconUserData", JSON.stringify({
     token: "JWT..."
 }));
 ```
+
+
+
+
+
+# `/alexicon/logout`
+
+Endpoint para cerrar sesión. Invalida el token JWT actual del usuario, eliminándolo de la tabla `active_tokens`. Después de llamar a este endpoint, el token ya no podrá utilizarse para acceder a recursos protegidos.
+
+### Encabezados
+
+- `Authorization`: Token JWT del usuario autenticado. Debe enviarse en el formato: `Bearer <token>`
+
+### Uso en frontend
+
+Después de llamar al logout, el frontend debe limpiar los datos de sesión en localStorage:
+
+```js
+localStorage.removeItem("AlexiconUserData");
+```
+
 
 
 

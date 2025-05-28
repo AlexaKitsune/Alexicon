@@ -43,9 +43,25 @@ router.post('/login', async (req, res) => {
             return res.json({ response: "Incorrect email or password." });
         }
 
-        const token = jwt.sign({ identity: user.email }, process.env.JWT_SECRET_KEY, {
-            expiresIn: 24 * 60 * 60 // 24 horas
-        });
+        const expiresIn = 24 * 60 * 60; // 24h en segundos
+        const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+        const token = jwt.sign(
+            { identity: user.email },
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: expiresIn }
+        );
+
+        // Invalida todos los tokens anteriores de este usuario
+        await conn.execute(
+            'DELETE FROM active_tokens WHERE user_id = ?',
+            [user.id]
+        );
+
+        await conn.execute(
+            'INSERT INTO active_tokens (token, user_id, expires_at) VALUES (?, ?, ?)',
+            [token, user.id, expiresAt.toISOString().slice(0, 19).replace('T', ' ')] // formato DATETIME
+        );
 
         // Obtener datos públicos del usuario usando la función reutilizable
         const user_data = await retrieveUserData(user.id);

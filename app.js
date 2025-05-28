@@ -24,6 +24,7 @@ const routes = {
     follow: require('./services/alexicon/follow'),
     on: require('./services/alexicon/on'),
     login: require('./services/alexicon/login'),
+    logout: require('./services/alexicon/logout'),
     notification_seen: require('./services/alexicon/notification_seen'),
     notifications: require('./services/alexicon/notifications'),
     register: require('./services/alexicon/register'),
@@ -55,6 +56,7 @@ app.use('/alexicon', routes.block);
 app.use('/alexicon', routes.follow);
 app.use('/alexicon', routes.on);
 app.use('/alexicon', routes.login);
+app.use('/alexicon', routes.logout);
 app.use('/alexicon', routes.notification_seen);
 app.use('/alexicon', routes.notifications);
 app.use('/alexicon', routes.register);
