@@ -73,13 +73,29 @@ router.post('/message', async (req, res) => {
         };
 
         // 3. Insertar notificación
+        
+        // 4. Obtener mensaje recién insertado
+        const [msgRows] = await conn.execute(
+            `SELECT id, content, media, msg_date 
+            FROM messages 
+            WHERE id = ?`,
+            [messageId]
+        );
 
-        // 4. Emitir al front por WebSocket
-        emitToUser(targetId, 'yipnet_message', {
-            message: 'You have a new message',
-            messageId,
-            timestamp: new Date().toISOString()
-        });
+        if (!msgRows.length) {
+            throw new Error("Message not found after insertion.");
+        }
+
+        const fullMessage = {
+            id: msgRows[0].id,
+            content: msgRows[0].content,
+            media: JSON.parse(msgRows[0].media || '[]'),
+            msg_date: msgRows[0].msg_date
+        };
+
+        // Emitir al front por WebSocket
+        emitToUser(targetId, 'yipnet_message', fullMessage);
+
 
         await conn.end();
 
