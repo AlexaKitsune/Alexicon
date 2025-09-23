@@ -1,5 +1,6 @@
 utils: cosas que interactuan con la base de datos o que no requieren procesamiento complejo, y sobre tod: que son universales para todos los servicios
 
+
 | Endpoint                     | Method | Auth required | Parameters                             |
 |------------------------------|--------|---------------|----------------------------------------|
 | `/alexicon/api`              | POST   | ✅            | Body JSON                              |
@@ -24,7 +25,7 @@ utils: cosas que interactuan con la base de datos o que no requieren procesamien
 | `/yipnet/get_single_post`    | POST   | Optional      | Body JSON (optional token)             |
 | `/yipnet/list_comments`      | GET    | ✅            | URL param (`/list_posts/:postId`)      |
 | `/yipnet/list_posts`         | GET    | ✅            | URL param (`/list_posts/:targetId`)    |
-| `/yipnet/messages`           | POST   | ✅            | Body JSON                              |
+| `/yipnet/message`            | POST   | ✅            | Body JSON                              |
 | `/yipnet/newsfeed`           | GET    | ✅            |                                        |
 | `/yipnet/post`               | POST   | ✅            | Body JSON                              |
 | `/yipnet/retrieve_posts`     | POST   | ✅            | Body JSON                              |
@@ -754,7 +755,7 @@ Respuesta:
 
 
 
-# `/yipnet/messages`
+# `/yipnet/message`
 
 Agrega un nuevo mensaje.
 

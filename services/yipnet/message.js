@@ -73,6 +73,36 @@ router.post('/message', async (req, res) => {
         };
 
         // 3. Insertar notificación
+        // 3. Insertar notificación (para el receptor del mensaje)
+        const notificationContent = {
+            user: {
+                id: senderInfo.id,
+                name: senderInfo.name,
+                surname: senderInfo.surname,
+                current_profile_pic: senderInfo.current_profile_pic,
+                services: senderInfo.services
+            },
+            // datos útiles para tu front
+            messageId,
+            sender_id: senderId,
+            preview: (content || '').slice(0, 200),
+            mediaCount: Array.isArray(media) ? media.length : 0
+        };
+
+        // owner_id = targetId (el receptor del mensaje)
+        await conn.execute(
+            `INSERT INTO notifications (owner_id, content, service)
+            VALUES (?, ?, ?)`,
+            [targetId, JSON.stringify(notificationContent), 'yipnet']
+        );
+
+        // Disparar evento de notificación por socket al receptor
+        emitToUser(targetId, 'yipnet_notification', {
+            type: 'message',
+            messageId,
+            senderId,
+            timestamp: new Date().toISOString()
+        });
         
         // 4. Obtener mensaje recién insertado
         const [msgRows] = await conn.execute(

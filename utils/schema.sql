@@ -112,6 +112,18 @@ CREATE TABLE IF NOT EXISTS conversations (
     participants JSON DEFAULT '[]'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
 
+CREATE TABLE IF NOT EXISTS files (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  rel_path VARCHAR(512) NOT NULL,
+  mime_type VARCHAR(127),
+  size BIGINT UNSIGNED,
+  visibility ENUM('private','public','custom') NOT NULL DEFAULT 'private',
+  allowed_users JSON DEFAULT '[]',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_rel_path (rel_path),
+  INDEX idx_visibility (visibility)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
+
 -- Increments comment_count +1 when new comment:
 DROP TRIGGER IF EXISTS after_comment_insert$$
 CREATE TRIGGER after_comment_insert
