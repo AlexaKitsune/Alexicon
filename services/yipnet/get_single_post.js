@@ -31,7 +31,7 @@ router.get('/get_single_post', async (req, res) => {
         const [rows] = await conn.execute(
             `SELECT p.id, p.owner_id, p.content, p.media, p.shared_by_list, p.share_id,
                     p.private_post, p.nsfw_post, p.comment_count, p.list_vote_heart,
-                    p.list_vote_up, p.list_vote_down, p.post_date,
+                    p.list_vote_up, p.list_vote_down, p.post_date, p.ai_generated,
                     u.name, u.surname, u.current_profile_pic, u.services
              FROM posts p
              JOIN users u ON p.owner_id = u.id
@@ -79,7 +79,8 @@ router.get('/get_single_post', async (req, res) => {
             post_date: post.post_date?.toISOString?.() || post.post_date,
             name: post.name,
             surname: post.surname,
-            current_profile_pic: post.current_profile_pic
+            current_profile_pic: post.current_profile_pic,
+            ai_generated: post.ai_generated,
         });
     } catch (err) {
         console.error("Error retrieving post:", err);

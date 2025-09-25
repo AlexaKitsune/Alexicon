@@ -89,7 +89,8 @@ router.get('/list_posts/:targetId', async (req, res) => {
                 post_date: row.post_date?.toISOString?.() || row.post_date,
                 name: row.name,
                 surname: row.surname,
-                current_profile_pic: row.current_profile_pic
+                current_profile_pic: row.current_profile_pic,
+                ai_generated: row.ai_generated,
             };
         });
 

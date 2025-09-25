@@ -65,12 +65,13 @@ CREATE TABLE IF NOT EXISTS posts (
     media JSON DEFAULT '[]',
     shared_by_list JSON DEFAULT '[]',
     share_id BIGINT(20) DEFAULT 0,
-    private_post TINYINT(1) NOT NULL,
+    private_post TINYINT(0) NOT NULL,
     nsfw_post TINYINT(1) NOT NULL,
     comment_count BIGINT(20) DEFAULT 0,
     list_vote_heart JSON DEFAULT '[]',
     list_vote_up JSON DEFAULT '[]',
     list_vote_down JSON DEFAULT '[]',
+    ai_generated TINYINT(0) NOT NULL DEFAULT 0,
     post_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     origin VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
@@ -100,6 +101,7 @@ CREATE TABLE IF NOT EXISTS messages (
     list_vote_heart JSON DEFAULT '[]',
     list_vote_up JSON DEFAULT '[]',
     list_vote_down JSON DEFAULT '[]',
+    deleted TINYINT(0) NOT NULL DEFAULT 0,
     msg_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     origin VARCHAR(255),
     FOREIGN KEY (sender_id) REFERENCES users(id),
@@ -109,7 +111,9 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS conversations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(63) NOT NULL,
-    participants JSON DEFAULT '[]'
+    participants JSON DEFAULT '[]',
+    admins JSON DEFAULT '[]',
+    current_group_pic VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci$$
 
 CREATE TABLE IF NOT EXISTS files (

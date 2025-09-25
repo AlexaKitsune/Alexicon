@@ -43,6 +43,7 @@ const routeNames = [
     'yipnet/get_single_comment',
     'yipnet/get_single_post',
     'yipnet/list_comments',
+    'yipnet/list_messages',
     'yipnet/list_posts',
     'yipnet/message',
     'yipnet/newsfeed',

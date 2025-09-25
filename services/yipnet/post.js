@@ -19,7 +19,8 @@ router.post('/post', async (req, res) => {
         media,
         shareId,
         privatePost,
-        nsfwPost
+        nsfwPost,
+        aiGenerated,
     } = req.body;
 
     const authHeader = req.headers.authorization;
@@ -47,9 +48,9 @@ router.post('/post', async (req, res) => {
         const [result] = await conn.execute(`
             INSERT INTO posts (
                 owner_id, content, media, share_id,
-                private_post, nsfw_post, origin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [ownerId, content, mediaJSON, shareId, privatePost, nsfwPost, ip]
+                private_post, nsfw_post, ai_generated, origin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [ownerId, content, mediaJSON, shareId, privatePost, nsfwPost, aiGenerated, ip]
         );
 
         const newPostId = result.insertId;

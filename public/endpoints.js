@@ -281,6 +281,17 @@ export async function yipnet_LIST_COMMENTS(endpoint_, token_, postId_){
     return await response.json();
 }
 
+// yipnet/list_messages
+export async function yipnet_LIST_MESSAGES(endpoint_, token_){
+    const response = await fetch(`${endpoint_}/yipnet/list_messages`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token_}`
+        }
+    })
+    return await response.json();
+}
+
 // yipnet/list_posts
 export async function yipnet_LIST_POSTS(endpoint_, token_, profileId_){
     const response = await fetch(`${endpoint_}/yipnet/list_posts/${profileId_}`, {
@@ -330,9 +341,9 @@ export async function yipnet_POST(endpoint_, token_, data_){
     return await response.json();
 }
 
-// alexicon/retrieve_posts
-export async function alexicon_RETRIEVE_POSTS(endpoint_, token_, data_){
-    const response = await fetch(`${endpoint_}/alexicon/retrieve_posts`, {
+// yipnet/retrieve_posts
+export async function yipnet_RETRIEVE_POSTS(endpoint_, token_, data_){
+    const response = await fetch(`${endpoint_}/yipnet/retrieve_posts`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
