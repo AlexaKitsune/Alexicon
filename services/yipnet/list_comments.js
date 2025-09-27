@@ -96,7 +96,8 @@ router.get('/list_comments/:postId', async (req, res) => {
                 comment_date: row.comment_date?.toISOString?.() || row.comment_date,
                 name: row.name,
                 surname: row.surname,
-                current_profile_pic: row.current_profile_pic
+                current_profile_pic: row.current_profile_pic,
+                ai_generated: row.ai_generated
             }));
 
         return res.json({ status: "ok", comment_list: comments });

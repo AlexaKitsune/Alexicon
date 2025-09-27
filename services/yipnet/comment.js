@@ -25,7 +25,7 @@ router.post('/comment', async (req, res) => {
         return res.status(401).json({ status: "error", message: "Invalid token." });
     }
 
-    const { mode, id, postId, content, media } = req.body;
+    const { mode, id, postId, content, media, aiGenerated } = req.body;
 
     try {
         const conn = await getConnection();
@@ -86,9 +86,9 @@ router.post('/comment', async (req, res) => {
 
             // Insertar comentario (el owner_id sigue siendo quien comenta)
             const [result] = await conn.execute(`
-                INSERT INTO comments (post_id, owner_id, content, media)
-                VALUES (?, ?, ?, ?)
-            `, [postId, userId, content, JSON.stringify(media)]);
+                INSERT INTO comments (post_id, owner_id, content, media, ai_generated)
+                VALUES (?, ?, ?, ?, ?)
+            `, [postId, userId, content, JSON.stringify(media), aiGenerated]);
 
             const commentId = result.insertId;
 

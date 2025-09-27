@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS comments (
     list_vote_heart JSON DEFAULT '[]',
     list_vote_up JSON DEFAULT '[]',
     list_vote_down JSON DEFAULT '[]',
+    ai_generated TINYINT(0) NOT NULL DEFAULT 0,
     comment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     origin VARCHAR(255),
     FOREIGN KEY (post_id) REFERENCES posts(id),
