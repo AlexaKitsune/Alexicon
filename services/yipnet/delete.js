@@ -43,7 +43,6 @@ async function deleteFilesByIds(conn, fileIds) {
 }
 
 router.post('/delete', async (req, res) => {
-	// Auth
 	const authHeader = req.headers.authorization;
 	if (!authHeader || !authHeader.startsWith('Bearer '))
 		return res.status(401).json({ status: 'error', message: 'Token requerido.' });
@@ -55,6 +54,7 @@ router.post('/delete', async (req, res) => {
 
 	const { id, type } = req.body;
 	const nid = Number(id);
+	console.log("eliminando mensaje con id y nid", id, nid)
 	if (!Number.isFinite(nid) || !['post', 'comment', 'message'].includes(type))
 		return res.status(400).json({ status: 'error', message: 'Parámetros inválidos.' });
 
@@ -91,8 +91,8 @@ router.post('/delete', async (req, res) => {
 
 			// 5) Emitir a emisor y receptor (no detenemos el flujo si falla)
 			try {
-				await emitNotification(senderId, 'message_deleted', 'yipnet', { id: nid });
-				await emitNotification(receiverId, 'message_deleted', 'yipnet', { id: nid });
+				await emitNotification(senderId, 'message_deleted', 'yipnet', { id: nid }, false);
+				await emitNotification(receiverId, 'message_deleted', 'yipnet', { id: nid }, false);
 			} catch (notifyErr) {
 				console.error('emitNotification error (message_deleted):', notifyErr);
 			}

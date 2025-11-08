@@ -8,6 +8,7 @@ const router = express.Router();
 router.post("/vote", async (req, res) => {
 	const { voteType, targetId, entityType } = req.body;
 
+	// Auth
 	const authHeader = req.headers.authorization;
 	if (!authHeader || !authHeader.startsWith("Bearer "))
 		return res.status(401).json({ response: "Missing or invalid token." });
@@ -16,6 +17,7 @@ router.post("/vote", async (req, res) => {
 	const myId = await getIdByToken(token);
 	if (!myId) return res.status(403).json({ response: "Unauthorized user." });
 
+	// Validación de campos
 	if (!voteType || targetId == null || !entityType)
 		return res.status(400).json({ response: "Missing required fields." });
 
@@ -25,9 +27,9 @@ router.post("/vote", async (req, res) => {
 	if (!["post", "comment", "message"].includes(entityType))
 		return res.status(400).json({ response: "Invalid entityType." });
 
-	const TABLES = { post: 'posts', comment: 'comments', message: 'messages' };
+	const TABLES  = { post: 'posts', comment: 'comments', message: 'messages' };
 	const COLUMNS = { heart: 'list_vote_heart', up: 'list_vote_up', down: 'list_vote_down' };
-	const table = TABLES[entityType];
+	const table  = TABLES[entityType];
 	const column = COLUMNS[voteType];
 	if (!table || !column) return res.status(400).json({ response: "Invalid voteType or entityType." });
 
@@ -41,8 +43,8 @@ router.post("/vote", async (req, res) => {
 		conn = await pool.getConnection();
 		await conn.beginTransaction();
 
-		// 1) Cargar lista actual con bloqueo
-		const [rows] = await conn.execute(
+		// Leer lista con bloqueo
+			const [rows] = await conn.execute(
 			`SELECT \`${column}\` FROM \`${table}\` WHERE id = ? FOR UPDATE`,
 			[tid]
 		);
@@ -51,32 +53,39 @@ router.post("/vote", async (req, res) => {
 			return res.status(404).json({ response: "Target not found." });
 		}
 
-		// 2) Parsear y togglear
-		let voteList;
+		// Parsear y togglear
+		let list = [];
 		try {
 			const raw = JSON.parse(rows[0][column] || "[]");
-			voteList = Array.isArray(raw) ? raw.map(n => Number(n)).filter(Number.isFinite) : [];
-		} catch {
-			voteList = [];
-		}
+			list = Array.isArray(raw) ? raw.map(Number).filter(Number.isFinite) : [];
+		} catch { list = []; }
 
-		const alreadyVoted = voteList.includes(uid);
-		const newList = alreadyVoted ? voteList.filter(id => id !== uid) : [...voteList, uid];
+		const alreadyVoted = list.includes(uid);
+		const newList = alreadyVoted ? list.filter(id => id !== uid) : [...list, uid];
 
-		// 3) Guardar
+		// Guardar
 		await conn.execute(
 			`UPDATE \`${table}\` SET \`${column}\` = ? WHERE id = ?`,
 			[JSON.stringify(newList), tid]
 		);
 
-		// 4) Obtener dueño
+		// Obtener dueño/participantes
 		let targetOwnerId = null;
+		let senderId = null;
+		let receiverId = null;
+
 		if (entityType === "message") {
 			const [msgRows] = await conn.execute(
-				"SELECT sender_id AS owner_id FROM messages WHERE id = ?",
+				"SELECT sender_id, receiver_id FROM messages WHERE id = ?",
 				[tid]
 			);
-			targetOwnerId = msgRows[0]?.owner_id ?? null;
+			if (!msgRows.length) {
+				await conn.rollback();
+				return res.status(404).json({ response: "Message not found." });
+			}
+			senderId = msgRows[0]?.sender_id ?? null;
+			receiverId = msgRows[0]?.receiver_id ?? null;
+			targetOwnerId = senderId;
 		} else {
 			const [tRows] = await conn.execute(
 				`SELECT owner_id FROM \`${table}\` WHERE id = ?`,
@@ -85,25 +94,34 @@ router.post("/vote", async (req, res) => {
 			targetOwnerId = tRows[0]?.owner_id ?? null;
 		}
 
-		// 5) Confirmar transacción antes de notificar
+		// Commit antes de notificar
 		await conn.commit();
 
-		// 6) Notificar fuera de la TX para no bloquear
-		if (Number.isFinite(targetOwnerId) && Number(targetOwnerId) !== uid) {
-			const [userDataResult] = await pool.execute(
-				"SELECT id, name, surname, current_profile_pic, services FROM users WHERE id = ?",
-				[uid]
-			);
-			const userData = userDataResult[0];
+		// Notificar fuera de la TX
+		const [userDataResult] = await pool.execute(
+			"SELECT id, name, surname, current_profile_pic, services FROM users WHERE id = ?",
+			[uid]
+		);
+		const userData = userDataResult[0];
+		const payload = {
+			user: userData,
+			targetId: tid,
+			voteType,
+			entityType,
+			status: alreadyVoted ? "removed" : "added",
+			timestamp: new Date().toISOString(),
+		};
 
-			await emitNotification(targetOwnerId, 'vote', 'yipnet', {
-				user: userData,
-				targetId: tid,
-				voteType,
-				entityType,
-				status: alreadyVoted ? "removed" : "added",
-				timestamp: new Date().toISOString(),
-			});
+		if (entityType === "message") {
+			// Notificar a ambas partes excepto al actor
+			const targets = new Set([senderId, receiverId]);
+			for (const t of targets)
+				if (Number.isFinite(t) && Number(t) !== uid)
+					await emitNotification(t, 'vote', 'yipnet', payload);
+		} else {
+			// Posts/Comments: solo al owner si no es el actor
+			if (Number.isFinite(targetOwnerId) && Number(targetOwnerId) !== uid)
+				await emitNotification(targetOwnerId, 'vote', 'yipnet', payload);
 		}
 
 		return res.json({ response: "Vote updated", status: alreadyVoted ? "removed" : "added" });

@@ -43,7 +43,7 @@ router.post('/message', async (req, res) => {
         if (!senderInfo) throw new Error('Sender not found');
 
         // 3) Notificación persistente (preview)
-        await emitNotification(tid, 'yipnet_notification', 'yipnet', {
+        await emitNotification(tid, 'message_preview', 'yipnet', {
             type: 'message',
             messageId,
             sender_id: senderId,
@@ -68,7 +68,7 @@ router.post('/message', async (req, res) => {
         );
         if (!msgRows.length) throw new Error('Message not found after insertion.');
 
-        await emitNotification(tid, 'yipnet_message', 'yipnet', {
+        await emitNotification(tid, 'message', 'yipnet', {
             id: msgRows[0].id,
             content: msgRows[0].content,
             media: JSON.parse(msgRows[0].media || '[]'),
