@@ -6,7 +6,7 @@ const sharp = require('sharp');
 const mimeTypes = require('mime-types');
 
 const getIdByToken = require('../../utils/getIdByToken');
-const pool = require('../../utils/dbIndex');
+const pool = require('../../utils/dbConn');
 
 const router = express.Router();
 

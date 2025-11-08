@@ -1,56 +1,38 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const pool = require('../../utils/dbConn');
+
 const router = express.Router();
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
+const FIELDS = ["id", "name", "surname", "nickname", "at_sign", "birthday", "gender", "description", "current_profile_pic", "current_cover_pic", "list_positive", "list_negative", "list_positive_external", "list_negative_external", "services", "api_code"];
 
 router.post('/retrieve_users', async (req, res) => {
     const { ids } = req.body;
 
-    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'number')) {
+    if (!Array.isArray(ids)) {
         return res.status(400).json({ error: 'Invalid ids array' });
     }
 
-    if (ids.length === 0) {
-        return res.json([]); // devuelve vacío si no hay ids
-    }
+    // Asegura números finitos
+    const safeIds = ids.map(Number).filter(Number.isFinite);
+    if (safeIds.length !== ids.length)
+        return res.status(400).json({ error: 'Invalid ids array' });
+
+    if (safeIds.length === 0)
+        return res.json([]); // vacío si no hay ids
 
     try {
-        const connection = await getConnection();
+        const placeholders = safeIds.map(() => '?').join(',');
 
-        const placeholders = ids.map(() => '?').join(',');
-        const query = `
-            SELECT
-                id,
-                name,
-                surname,
-                nickname,
-                at_sign,
-                birthday,
-                gender,
-                description,
-                current_profile_pic,
-                current_cover_pic,
-                list_positive,
-                list_negative,
-                list_positive_external,
-                list_negative_external,
-                services,
-                api_code
-            FROM users
-            WHERE id IN (${placeholders})
-        `;
+        const sql = `
+        SELECT ${FIELDS.join(', ')}
+        FROM users
+        WHERE id IN (${placeholders})
+        ORDER BY FIELD(id, ${placeholders})`;
 
-        const [rows] = await connection.execute(query, ids);
+        // Usamos los ids dos veces: IN (...) y FIELD(...)
+        const params = [...safeIds, ...safeIds];
 
-        await connection.end(); // Cerrar la conexión después de usarla
+        const [rows] = await pool.execute(sql, params);
 
         const result = rows.map(user => ({
             id: user.id,
@@ -63,16 +45,16 @@ router.post('/retrieve_users', async (req, res) => {
             description: user.description,
             current_profile_pic: user.current_profile_pic,
             current_cover_pic: user.current_cover_pic,
+            // Se devuelven tal cual vienen (como en tu versión original)
             list_positive: user.list_positive,
             list_negative: user.list_negative,
             list_positive_external: user.list_positive_external,
             list_negative_external: user.list_negative_external,
             services: user.services,
-            api_code: user.api_code ? 1 : 0
+            api_code: user.api_code ? 1 : 0,
         }));
 
         res.json(result);
-
     } catch (error) {
         console.error('Error retrieving users:', error);
         res.status(500).json({ error: 'Internal server error' });

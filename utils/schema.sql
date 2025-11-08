@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     gender VARCHAR(255) NOT NULL,
     description VARCHAR(255),
     email VARCHAR(255) NOT NULL,
-    password VARCHAR(256),
+    password VARCHAR(255),
     current_profile_pic VARCHAR(255),
     current_cover_pic VARCHAR(255),
     list_positive JSON DEFAULT '[]',
@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS active_tokens (
     token VARCHAR(512) PRIMARY KEY,
+    jti VARCHAR(63),
     user_id BIGINT UNSIGNED NOT NULL,
     expires_at DATETIME NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     owner_id BIGINT UNSIGNED NOT NULL,
     seen TINYINT(1) NOT NULL DEFAULT 0,
+    event VARCHAR(255) NOT NULL,
     content JSON DEFAULT '{}',
     service VARCHAR(255),
     notif_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

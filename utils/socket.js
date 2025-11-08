@@ -1,3 +1,4 @@
+const pool = require('./dbConn');
 let ioInstance = null;
 
 function initSocket(server) {
@@ -11,18 +12,46 @@ function initSocket(server) {
 
     io.on('connection', (socket) => {
         console.log('Socket conectado:', socket.id);
-        socket.on('join', (userId) => {
-            socket.join(`user_${userId}`);
-        });
+        socket.on('join', (userId) => socket.join(`user_${userId}`));
     });
 
     ioInstance = io;
 }
 
-function emitToUser(userId, event, data) {
-    if (ioInstance) {
-        ioInstance.to(`user_${userId}`).emit(event, data);
+async function emitNotification(userId, event, service = 'alexicon', data = {}, dbSave = true) {
+    try {
+        const payload = {
+            id: null,
+            seen: false,
+            event,
+            content: data ?? {},
+            service,
+            notif_date: new Date().toISOString()
+        };
+
+        if(!dbSave){
+            emitToUser(userId, event, payload);
+            return { ok: true, notifId: null, payload };
+        }
+
+        const [result] = await pool.execute(
+            `INSERT INTO notifications (owner_id, event, content, service) VALUES (?, ?, ?, ?)`,
+            [userId, event, JSON.stringify(payload.content), service]
+        );
+        payload.id = result.insertId;
+
+        emitToUser(userId, event, payload);
+
+        return { ok: true, notifId: payload.id, payload };
+    } catch (err) {
+        console.error('emitNotification error:', err);
+        return { ok: false, error: err.message };
     }
 }
 
-module.exports = { initSocket, emitToUser };
+function emitToUser(userId, event, data) {
+    if (ioInstance)
+        ioInstance.to(`user_${userId}`).emit(event, data);
+}
+
+module.exports = { initSocket, emitNotification }; // emitToUser,

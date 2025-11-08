@@ -3,3 +3,5 @@ storage/alexicon
 storage/yipnet
 test
 .env
+
+utils/validateRequest.js

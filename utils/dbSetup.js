@@ -1,16 +1,23 @@
+// utils/dbSetup.js
 const fs = require('fs');
 const path = require('path');
-const pool = require('./dbIndex');
+const mysql = require('mysql2/promise');
 
 async function createDatabase() {
     const schemaPath = path.join(__dirname, 'schema.sql');
-    const sql = fs.readFileSync(schemaPath, 'utf8');
+    const sql = fs.readFileSync(schemaPath, 'utf8').replace(/\$\$/g, ';');
 
     try {
-        const connection = await pool.getConnection();
-        await connection.query(sql.replace(/\$\$/g, ';')); // reemplaza `$$` por `;` para ejecutarlo
+        const conn = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASS || '',
+            multipleStatements: true,
+        });
+
+        await conn.query(sql);
+        await conn.end();
         console.log('Base de datos y tablas creadas (si no existían).');
-        connection.release();
     } catch (err) {
         console.error('Error al crear la base de datos:', err);
     }

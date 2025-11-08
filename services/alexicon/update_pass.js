@@ -1,7 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const mysql = require('mysql2/promise');
+const pool = require('../../utils/dbConn');
 const getIdByToken = require('../../utils/getIdByToken');
+
 const router = express.Router();
 
 function isValidPassword(password) {
@@ -9,55 +10,38 @@ function isValidPassword(password) {
     return regex.test(password);
 }
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
-
 router.post('/update_pass', async (req, res) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith('Bearer '))
         return res.status(401).json({ status: 'error', message: 'Missing or invalid token.' });
-    }
 
     const token = authHeader.split(' ')[1];
     const userId = await getIdByToken(token);
-    if (!userId) {
+    if (!userId)
         return res.status(401).json({ status: 'error', message: 'Invalid token.' });
-    }
 
     const { oldPass, newPass } = req.body;
 
-    if (!oldPass || !newPass) {
+    if (!oldPass || !newPass)
         return res.status(400).json({ status: 'error', message: 'Missing required fields.' });
-    }
 
-    if (!isValidPassword(newPass)) {
+    if (!isValidPassword(newPass))
         return res.status(400).json({ status: 'error', message: 'New password does not meet requirements.' });
-    }
 
     try {
-        const conn = await getConnection();
-
-        const [rows] = await conn.execute('SELECT password FROM users WHERE id = ?', [userId]);
-        if (rows.length === 0) {
-            await conn.end();
+        // 1) Obtener hash actual
+        const [rows] = await pool.execute('SELECT password FROM users WHERE id = ?', [userId]);
+        if (rows.length === 0)
             return res.status(404).json({ status: 'error', message: 'User not found.' });
-        }
 
+        // 2) Comparar contraseña anterior
         const passwordMatch = await bcrypt.compare(oldPass, rows[0].password);
-        if (!passwordMatch) {
-            await conn.end();
+        if (!passwordMatch)
             return res.status(403).json({ status: 'error', message: 'Old password is incorrect.' });
-        }
 
+        // 3) Actualizar a nuevo hash
         const hashedNewPass = await bcrypt.hash(newPass, 10);
-        await conn.execute('UPDATE users SET password = ? WHERE id = ?', [hashedNewPass, userId]);
-        await conn.end();
+        await pool.execute('UPDATE users SET password = ? WHERE id = ?', [hashedNewPass, userId]);
 
         return res.json({ status: 'ok', message: 'Password updated successfully.' });
     } catch (error) {

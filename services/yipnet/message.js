@@ -1,80 +1,52 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const pool = require('../../utils/dbConn');
 const getIdByToken = require('../../utils/getIdByToken');
-const { emitToUser } = require('../../utils/socket');
-const router = express.Router();
+const { emitNotification } = require('../../utils/socket');
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
+const router = express.Router();
 
 router.post('/message', async (req, res) => {
     const { media = [], content = '', targetId, conversationId = 0 } = req.body;
 
+    // Auth
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith('Bearer '))
         return res.status(401).json({ status: 'error', message: 'Missing or invalid token.' });
-    }
-
     const token = authHeader.split(' ')[1];
     const senderId = await getIdByToken(token);
-
-    if (!senderId) {
+    if (!senderId)
         return res.status(403).json({ status: 'error', message: 'Invalid token.' });
-    }
 
-    if (
-        targetId === undefined || isNaN(targetId) ||
-        conversationId === undefined || isNaN(conversationId)
-    ) {
+    // Params
+    const tid = Number(targetId);
+    const cid = Number(conversationId);
+    if (!Number.isFinite(tid) || !Number.isFinite(cid))
         return res.status(400).json({ status: 'error', message: 'Invalid or missing fields.' });
-    }
 
     try {
-        const conn = await getConnection();
-
-        // 1. Insertar mensaje
-        const [msgResult] = await conn.execute(
-            `INSERT INTO messages 
-             (sender_id, receiver_id, conversation_id, content, media, msg_date) 
-             VALUES (?, ?, ?, ?, ?, NOW())`,
-            [
-                senderId,
-                targetId,
-                conversationId,
-                content,
-                JSON.stringify(media)
-            ]
+        // 1) Insertar mensaje
+        const [msgResult] = await pool.execute(
+            `INSERT INTO messages (sender_id, receiver_id, conversation_id, content, media, msg_date) VALUES (?, ?, ?, ?, ?, NOW())`,
+            [senderId, tid, cid, content, JSON.stringify(media)]
         );
-
         const messageId = msgResult.insertId;
 
-        // 2. Obtener datos del sender
-        const [rows] = await conn.execute(
-            `SELECT id, name, surname, current_profile_pic, services 
-             FROM users WHERE id = ?`,
+        // 2) Datos del sender
+        const [rows] = await pool.execute(
+            `SELECT id, name, surname, current_profile_pic, services
+            FROM users
+            WHERE id = ?
+            LIMIT 1`,
             [senderId]
         );
-
         const senderInfo = rows[0];
-        if (!senderInfo) throw new Error("Sender not found");
+        if (!senderInfo) throw new Error('Sender not found');
 
-        const notifContent = {
-            id: senderInfo.id,
-            name: senderInfo.name,
-            surname: senderInfo.surname,
-            current_profile_pic: senderInfo.current_profile_pic,
-            services: senderInfo.services
-        };
-
-        // 3. Insertar notificación
-        // 3. Insertar notificación (para el receptor del mensaje)
-        const notificationContent = {
+        // 3) Notificación persistente (preview)
+        await emitNotification(tid, 'yipnet_notification', 'yipnet', {
+            type: 'message',
+            messageId,
+            sender_id: senderId,
             user: {
                 id: senderInfo.id,
                 name: senderInfo.name,
@@ -82,59 +54,32 @@ router.post('/message', async (req, res) => {
                 current_profile_pic: senderInfo.current_profile_pic,
                 services: senderInfo.services
             },
-            // datos útiles para tu front
-            messageId,
-            sender_id: senderId,
             preview: (content || '').slice(0, 200),
             mediaCount: Array.isArray(media) ? media.length : 0
-        };
-
-        // owner_id = targetId (el receptor del mensaje)
-        await conn.execute(
-            `INSERT INTO notifications (owner_id, content, service)
-            VALUES (?, ?, ?)`,
-            [targetId, JSON.stringify(notificationContent), 'yipnet']
-        );
-
-        // Disparar evento de notificación por socket al receptor
-        emitToUser(targetId, 'yipnet_notification', {
-            type: 'message',
-            messageId,
-            senderId,
-            timestamp: new Date().toISOString()
         });
-        
-        // 4. Obtener mensaje recién insertado
-        const [msgRows] = await conn.execute(
-            `SELECT id, content, media, msg_date 
-            FROM messages 
-            WHERE id = ?`,
+
+        // 4) Emitir el mensaje completo en tiempo real (no persistente)
+        const [msgRows] = await pool.execute(
+            `SELECT id, content, media, msg_date
+            FROM messages
+            WHERE id = ?
+            LIMIT 1`,
             [messageId]
         );
+        if (!msgRows.length) throw new Error('Message not found after insertion.');
 
-        if (!msgRows.length) {
-            throw new Error("Message not found after insertion.");
-        }
-
-        const fullMessage = {
+        await emitNotification(tid, 'yipnet_message', 'yipnet', {
             id: msgRows[0].id,
             content: msgRows[0].content,
             media: JSON.parse(msgRows[0].media || '[]'),
             msg_date: msgRows[0].msg_date
-        };
-
-        // Emitir al front por WebSocket
-        emitToUser(targetId, 'yipnet_message', fullMessage);
-
-
-        await conn.end();
+        }, false);
 
         return res.json({ status: 'ok', message: 'Message and notification sent.', messageId });
-
     } catch (error) {
-        console.error("Error in message endpoint:", error);
+        console.error('Error in message endpoint:', error);
         return res.status(500).json({ status: 'error', message: 'Internal server error.' });
     }
 });
 
-module.exports = router;
+module.exports = router

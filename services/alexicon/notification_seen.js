@@ -1,71 +1,50 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const pool = require('../../utils/dbConn');
 const getIdByToken = require('../../utils/getIdByToken');
+
 const router = express.Router();
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
-
 router.post('/notification_seen', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ status: "error", message: "Missing or invalid token." });
-    }
+	// Auth
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer '))
+		return res.status(401).json({ status: "error", message: "Missing or invalid token." });
 
-    const token = authHeader.split(" ")[1];
-    const userId = await getIdByToken(token);
-    if (!userId) {
-        return res.status(401).json({ status: "error", message: "Invalid token." });
-    }
+	const token = authHeader.split(" ")[1];
+	const userId = await getIdByToken(token);
+	if (!userId)
+		return res.status(401).json({ status: "error", message: "Invalid token." });
 
-    const { id, mode } = req.body;
+	const { id, mode } = req.body;
 
-    try {
-        const conn = await getConnection();
+	try {
+		if (mode === 'all') {
+			await pool.execute(
+				"UPDATE notifications SET seen = 1 WHERE owner_id = ?",
+				[userId]
+			);
+			return res.json({ status: "ok", message: "All notifications marked as seen." });
+		}
 
-        if (mode === 'all') {
-            await conn.execute(
-                "UPDATE notifications SET seen = 1 WHERE owner_id = ?",
-                [userId]
-            );
-            await conn.end();
-            return res.json({ status: "ok", message: "All notifications marked as seen." });
+		// Caso individual
+		const nid = Number(id);
+		if (!Number.isFinite(nid))
+			return res.status(400).json({ status: "error", message: "Invalid or missing notification ID." });
 
-        } else {
-            if (!id || typeof id !== 'number') {
-                await conn.end();
-                return res.status(400).json({ status: "error", message: "Invalid or missing notification ID." });
-            }
+		const [result] = await pool.execute(
+			"UPDATE notifications SET seen = 1 WHERE id = ? AND owner_id = ?",
+			[nid, userId]
+		);
 
-            const [rows] = await conn.execute(
-                "SELECT id FROM notifications WHERE id = ? AND owner_id = ?",
-                [id, userId]
-            );
+		if (result.affectedRows === 0)
+			return res.status(404).json({ status: "error", message: "Notification not found or unauthorized." });
 
-            if (rows.length === 0) {
-                await conn.end();
-                return res.status(404).json({ status: "error", message: "Notification not found or unauthorized." });
-            }
+		return res.json({ status: "ok", message: "Notification marked as seen." });
 
-            await conn.execute(
-                "UPDATE notifications SET seen = 1 WHERE id = ?",
-                [id]
-            );
-
-            await conn.end();
-            return res.json({ status: "ok", message: "Notification marked as seen." });
-        }
-
-    } catch (error) {
-        console.error("Error in notification_seen endpoint:", error);
-        return res.status(500).json({ status: "error", message: "Database error." });
-    }
+	} catch (error) {
+		console.error("Error in notification_seen endpoint:", error);
+		return res.status(500).json({ status: "error", message: "Database error." });
+	}
 });
 
 module.exports = router;

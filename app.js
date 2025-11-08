@@ -52,7 +52,10 @@ const routeNames = [
     'yipnet/vote',
 ];
 
-routeNames.forEach(r => app.use('/' + r.split('/')[0], require(`./services/${r}`)));
+routeNames.forEach(r => app.use(
+    '/' + r.split('/')[0],
+    require(`./services/${r}`)
+));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/public', express.static(path.join(__dirname, 'public')));

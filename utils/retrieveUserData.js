@@ -1,43 +1,22 @@
-const mysql = require('mysql2/promise');
+const pool = require('./dbConn');
 require('dotenv').config();
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
+const FIELDS = ["id", "name", "surname", "nickname", "at_sign", "birthday", "gender", "description", "current_profile_pic", "current_cover_pic", "list_positive", "list_negative", "list_positive_external", "list_negative_external", "services", "api_code"];
 
 async function retrieveUserData(userId) {
     try {
-        const conn = await getConnection();
-        const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [userId]);
-        await conn.end();
+        const uid = Number(userId);
+        if (!Number.isFinite(uid)) return null;
 
-        if (rows.length === 0) return null;
+        const [rows] = await pool.execute(`SELECT ${FIELDS.join(', ')} FROM users WHERE id = ?`, [uid]);
+        if (!rows || rows.length === 0) return null;
 
-        const user = rows[0];
+        const row = rows[0];
 
-        return {
-            id: user.id,
-            name: user.name,
-            surname: user.surname,
-            nickname: user.nickname,
-            at_sign: user.at_sign,
-            birthday: user.birthday,
-            gender: user.gender,
-            description: user.description,
-            current_profile_pic: user.current_profile_pic,
-            current_cover_pic: user.current_cover_pic,
-            list_positive: user.list_positive,
-            list_negative: user.list_negative,
-            list_positive_external: user.list_positive_external,
-            list_negative_external: user.list_negative_external,
-            services: user.services,
-            api_code: user.api_code ? 1 : 0
-        };
+        const userData = {};
+        for (const F of FIELDS) userData[F] = F === "api_code" ? (row[F] ? 1 : 0) : row[F];
+
+        return userData;
     } catch (err) {
         console.error("Database error:", err);
         return "Database error.";

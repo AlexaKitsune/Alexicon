@@ -1,109 +1,102 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const pool = require('../../utils/dbConn');
 const getIdByToken = require('../../utils/getIdByToken');
 const router = express.Router();
-
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
 
 router.post('/block', async (req, res) => {
     const { targetId, mode } = req.body;
     const authHeader = req.headers.authorization;
-    
-    if (!targetId || isNaN(targetId)) {
-        return res.status(400).json({ status: "error", message: "Invalid target ID." });
-    }
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // Validaciones básicas
+    const tid = Number(targetId);
+    if (!Number.isFinite(tid))
+        return res.status(400).json({ status: "error", message: "Invalid target ID." });
+
+    if (!authHeader || !authHeader.startsWith("Bearer "))
         return res.status(401).json({ status: "error", message: "Missing or invalid token." });
-    }
 
     const token = authHeader.split(" ")[1];
     const myId = await getIdByToken(token);
-
-    if (!myId) {
+    if (!myId)
         return res.status(401).json({ status: "error", message: "Invalid token." });
-    }
 
+    if (!["block","unblock"].includes(mode))
+        return res.status(400).json({ status: "error", message: "Invalid mode." });
+
+    let conn;
     try {
-        const conn = await getConnection();
+        conn = await pool.getConnection();
+        await conn.beginTransaction();
 
-        // Obtener los arrays list_negative y list_negative_external del myId y targetId
-        const [userRows] = await conn.execute(
-            "SELECT list_negative, list_negative_external FROM users WHERE id IN (?, ?)",
-            [myId, targetId]
+        // Trae ambas filas y BLOQUÉALAS (para consistencia)
+        const [rows] = await conn.execute(
+            `SELECT id, list_negative, list_negative_external
+            FROM users
+            WHERE id IN (?, ?)
+            ORDER BY FIELD(id, ?, ?) 
+            FOR UPDATE`,
+            [myId, tid, myId, tid]
         );
 
-        if (userRows.length < 2) {
-            await conn.end();
+        if (rows.length < 2) {
+            await conn.rollback();
             return res.status(404).json({ status: "error", message: "User not found." });
         }
 
-        const [myData, targetData] = userRows;
-        const listPositive = tryParseJson(myData.list_negative) || [];
-        const listPositiveExternal = tryParseJson(targetData.list_negative_external) || [];
+        // Gracias al ORDER BY FIELD, garantizamos el orden: [myData, targetData]
+        const [myData, targetData] = rows;
+
+        // Parseos seguros
+        const myNeg = toNumArraySafe(tryParseJson(myData.list_negative));
+        const targetNegExt = toNumArraySafe(tryParseJson(targetData.list_negative_external));
 
         if (mode === "block") {
-            // Agregar myId a list_negative_external de targetId y targetId a list_negative de myId si no están ya
-            if (!listPositive.includes(targetId)) {
-                listPositive.push(targetId);
-            }
-            if (!listPositiveExternal.includes(myId)) {
-                listPositiveExternal.push(myId);
-            }
-        } else if (mode === "unblock") {
-            // Eliminar myId de list_negative de myId y targetId de list_negative_external de targetId si existen
-            const myListPositiveIndex = listPositive.indexOf(targetId);
-            const targetListPositiveExternalIndex = listPositiveExternal.indexOf(myId);
-
-            if (myListPositiveIndex !== -1) {
-                listPositive.splice(myListPositiveIndex, 1);
-            }
-            if (targetListPositiveExternalIndex !== -1) {
-                listPositiveExternal.splice(targetListPositiveExternalIndex, 1);
-            }
+            // Agregar si no están
+            if (!myNeg.includes(tid)) myNeg.push(tid);
+            if (!targetNegExt.includes(myId)) targetNegExt.push(myId);
         } else {
-            await conn.end();
-            return res.status(400).json({ status: "error", message: "Invalid mode." });
+            // unblock: quitar si están
+            removeFromArray(myNeg, tid);
+            removeFromArray(targetNegExt, myId);
         }
 
-        // Actualizar los arrays en la base de datos
+        // Actualiza ambas filas
         await conn.execute(
             "UPDATE users SET list_negative = ? WHERE id = ?",
-            [JSON.stringify(listPositive), myId]
+            [JSON.stringify(myNeg), myId]
         );
-
         await conn.execute(
             "UPDATE users SET list_negative_external = ? WHERE id = ?",
-            [JSON.stringify(listPositiveExternal), targetId]
+            [JSON.stringify(targetNegExt), tid]
         );
 
-        await conn.end();
+        await conn.commit();
 
         return res.json({ status: "ok", message: mode === "block" ? "Now blocking" : "Unblocked" });
-
     } catch (error) {
         console.error("Error processing block/unblock:", error);
+        try { if (conn) await conn.rollback(); } catch {}
         return res.status(500).json({ status: "error", message: "Database connection error." });
+    } finally {
+        if (conn) conn.release();
     }
 });
 
-// Función para manejar parsing de JSON
+// Helpers
 function tryParseJson(value) {
-    if (typeof value === 'string') {
-        try {
-            return JSON.parse(value);
-        } catch {
-            return value;
-        }
-    }
+    if (typeof value === 'string')
+        try { return JSON.parse(value); } catch { return value; }
     return value;
+}
+
+function toNumArraySafe(v) {
+    const arr = Array.isArray(v) ? v : [];
+    return arr.map(n => Number(n)).filter(Number.isFinite);
+}
+
+function removeFromArray(arr, val) {
+    const idx = arr.indexOf(val);
+    if (idx !== -1) arr.splice(idx, 1);
 }
 
 module.exports = router;

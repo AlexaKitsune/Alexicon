@@ -3,8 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const mimeTypes = require('mime-types');
-
-const pool = require('../../utils/dbIndex');
+const pool = require('../../utils/dbConn');
 const getIdByToken = require('../../utils/getIdByToken');
 
 const router = express.Router();

@@ -1,34 +1,29 @@
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql2/promise');
+const pool = require('./dbConn');
 
-async function getConnection() {
-    return await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-    });
-}
-
-module.exports = async function (req, res, next) {
+module.exports = async function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.sendStatus(401);
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+        const userId = Number(decoded.sub);
+        const jti = decoded.jti;
 
-        const conn = await getConnection();
-        const [rows] = await conn.execute(
-            'SELECT * FROM active_tokens WHERE token = ? AND expires_at > NOW()',
-            [token]
+        if (!Number.isFinite(userId) || !jti) return res.sendStatus(403);
+
+        const [rows] = await pool.execute(
+            'SELECT 1 FROM active_tokens WHERE jti = ? AND user_id = ? AND expires_at > NOW() LIMIT 1',
+            [jti, userId]
         );
-        await conn.end();
+        if (rows.length === 0) return res.sendStatus(403);
 
-        if (rows.length === 0) return res.sendStatus(403); // Token no está activo
+        req.userId = userId;   // cómodo para usar en rutas
+        req.tokenJti = jti;    // útil para /logout del token actual
+        req.user = decoded;    // si te sirve el payload completo
 
-        req.user = decoded;
-        next();
+        return next();
     } catch (err) {
         return res.sendStatus(403);
     }
