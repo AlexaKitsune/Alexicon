@@ -19,33 +19,33 @@ function getTokenFromHeader(req) {
  * Revoca SOLO el token actual (por jti + user_id)
  */
 router.post('/logout', async (req, res) => {
-  const token = getTokenFromHeader(req);
-  if (!token) return res.status(401).json({ response: 'Missing token.' });
+	const token = getTokenFromHeader(req);
+	if (!token) return res.status(401).json({ response: 'Missing token.' });
 
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-  } catch {
-    // Token inválido/expirado: idempotente; responder OK sin revelar nada
-    return res.json({ response: 'Logged out successfully.' });
-  }
+	let decoded;
+	try {
+		decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+	} catch {
+		// Token inválido/expirado: idempotente; responder OK sin revelar nada
+		return res.json({ response: 'Logged out successfully.' });
+	}
 
-  const userId = Number(decoded.sub);
-  const jti = decoded.jti;
-  if (!Number.isFinite(userId) || !jti) {
-    return res.status(400).json({ response: 'Invalid token payload.' });
-  }
+	const userId = Number(decoded.sub);
+	const jti = decoded.jti;
+	if (!Number.isFinite(userId) || !jti) {
+		return res.status(400).json({ response: 'Invalid token payload.' });
+	}
 
-  try {
-    await pool.execute(
-      'DELETE FROM active_tokens WHERE jti = ? AND user_id = ?',
-      [jti, userId]
-    );
-    return res.json({ response: 'Logged out successfully.' });
-  } catch (err) {
-    console.error('Logout error:', err);
-    return res.status(500).json({ response: 'Server error.' });
-  }
+	try {
+		await pool.execute(
+		'DELETE FROM active_tokens WHERE jti = ? AND user_id = ?',
+		[jti, userId]
+		);
+		return res.json({ response: 'Logged out successfully.' });
+	} catch (err) {
+		console.error('Logout error:', err);
+		return res.status(500).json({ response: 'Server error.' });
+	}
 });
 
 /**

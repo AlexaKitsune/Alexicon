@@ -21,6 +21,7 @@ app.use(express.json());
 const routeNames = [
     'alexicon/api',
     'alexicon/block',
+    'alexicon/check_session',
     'alexicon/follow',
     'alexicon/on',
     'alexicon/login',
@@ -36,6 +37,7 @@ const routeNames = [
     'alexicon/update_pics',
     'alexicon/update_profile',
     'alexicon/upload',
+    'alexicon/verify',
 
     'yipnet/comment',
     'yipnet/delete',

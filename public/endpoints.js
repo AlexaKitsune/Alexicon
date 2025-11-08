@@ -43,6 +43,15 @@ export async function alexicon_BLOCK(endpoint_, token_, data_){
     return await response.json();
 }
 
+// alexicon/check_session
+export async function alexicon_CHECK_SESSION(endpoint_, token_) {
+    const response = await fetch(`${endpoint_}/alexicon/check_session`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token_}` }
+    });
+    return await response.json();
+}
+
 // alexicon/follow
 export async function alexicon_FOLLOW(endpoint_, token_, data_){
     const response = await fetch(`${endpoint_}/alexicon/follow`, {
@@ -64,6 +73,18 @@ export async function alexicon_LOGIN(endpoint_, userData_){
             "Content-Type": "application/json"
         },
         body: JSON.stringify(userData_)
+    })
+    return await response.json();
+}
+
+// alexicon/logout
+export async function alexicon_LOGOUT(endpoint_, token_){
+    const response = await fetch(`${endpoint_}/alexicon/logout`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token_}`
+        }
     })
     return await response.json();
 }
